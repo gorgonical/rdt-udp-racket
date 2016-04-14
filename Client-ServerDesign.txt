@@ -1,0 +1,55 @@
+Nicholas Gordon
+COMP3825: Networking
+March 23
+
+DESIGN FOR TERM PROJECT
+
+CLIENT-SERVER FRAMEWORK: The server will run a program in Racket, that
+listens for UDP packets. The client runs a corresponding Racket
+program with a filename as an argument. The client sends a packet that
+requests a file, which is a packet with seq=0, a return port number,
+and a filename in the data. If after some timeout no ACK is received,
+it resends the request. When the server gets the request, it sends an
+ACK, and starts sending the file packets according to one of the
+protocols. The server indicates file transfer is complete by sending
+the last packet with the EOF flag=1. The client sends an ACK EOF
+packet, (and the server sends a final ACK EOF)?. If the server does not
+have the file, it sends an empty packet with EOF. The connection is
+closed.
+
+UDP SEGMENT STRUCTURE: A standard UDP segment. The first two bytes of
+the UDP data segment are used to contain two flags.
+0 - ACK: f, EOF: f
+1 - ACK: t, EOF: f
+2 - ACK: f, EOF: t
+3 - ACK: t, EOF: t
+The next four bytes are used to represent the sequence number. The
+data begins at the 7th byte of the data segment.
+
+ALTERNATING BIT: After the server sends the ACK packet, it sends the
+packet with seq=0, data, and checksum, and starts a timer. If the
+timer runs out, it resends the packet, also restarting the timer. Once
+it gets the ACK packet with seq=0 it stops the timer and sends the
+next packet, with seq=1, restarting the timer. If the timer expires,
+it resends, etc. Once it receives ACK with seq=1, the cycle completes. The
+client works by opening with an ACK seq=0 when it receives the
+server's data packet. It waits for each packet, ACKing them with the
+same seq # in turn. When it detects that the packet has the EOF flag,
+connection teardown commences as above.
+
+GO-BACK-N: The server maintains two variables: base and nextseq, and
+one constant: N. After connection setup is complete, the server sends
+packets with seq #s incrementing from 0, each time incrementing
+nextseq, until nextseq is greater than or equal to base+N. Whenever
+packets are sent, start a timer for the first packet. In the event of
+a timeout, resend all packets from base to nextseq-1.  Whenever an ACK
+is received from the client, all packets with seq #s less than or
+equal to the seq # of the ACK are confirmed. The server then sets base
+to be the seq # of the ACK+1; if a timer is running, stop that one,
+and set a new timer for the remaining unACKed packets
+(nextseq-base). Then the server begins sending new packets, as nextseq
+< base+N now. The client maintains only one variable:
+expectedseq. Whenever it receives a packet with seq=expectedseq, it
+sends an ACK with seq #=expectedseq, and increments expectedseq. When
+the client receives a packet with the EOF flag, connection teardown
+commences as above.
