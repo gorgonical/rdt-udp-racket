@@ -1,0 +1,13 @@
+Nicholas Gordon
+COMP3825
+Spring 2016
+
+Term Project
+Alternating Bit protocol
+
+The code is built using the standard Racket distribution as it ships to openSUSE Tumbleweed. My current version of the Linux kernel is 4.5.0-1-default as of the time of writing (4-14-16). However, this should be irrelevant, and any Racket installation should work.
+
+The server code should be run by calling `racket -t srv.rkt` in the same directory as srv.rkt
+The client code should be run by calling `racket -t clnt.rkt <port> <output-file-name> <receiving-port> <requested-file-name>` in the same directory as clnt.rkt
+
+The system is currently configured for the "setup port" to be 5050. As such, both the client and server need to have this port open, and the client additionally (obviously) needs to have the specified receive port open. The client can use port 5050 to receive on.
