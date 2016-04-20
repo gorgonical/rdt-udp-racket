@@ -37,7 +37,7 @@ server's data packet. It waits for each packet, ACKing them with the
 same seq # in turn. When it detects that the packet has the EOF flag,
 connection teardown commences as above.
 
-GO-BACK-N: The server maintains two variables: base and nextseq, and
+GO-BACK-N: The server maintains two variables: base=0 and nextseq=0, and
 one constant: N. After connection setup is complete, the server sends
 packets with seq #s incrementing from 0, each time incrementing
 nextseq, until nextseq is greater than or equal to base+N. Whenever

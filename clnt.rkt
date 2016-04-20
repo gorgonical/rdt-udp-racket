@@ -59,7 +59,58 @@
   ;; control to the main process
   (close-output-port outfile)
   )
-;(trace alt-bit-recv)
+
+;; Input: filepath : path? : The filepath to write the file to
+;;        sendosck : udp? : The connected socket to the server
+;;        recvsock : udp? : The socket to receive data from
+;; Client-side routine to receive files according to the go-back-n protocol
+(define (gbn-recv filepath sendsock recvsock)
+  ;;define expectedseq=0
+  (define expseq 0)
+
+  (define outfile (open-output-file filepath
+                                    #:mode 'binary
+                                    #:exists 'replace))
+
+  (define inbytes (make-bytes 506))
+  (define pkt (udpseg #f #f 0 (bytes)))
+  (define ackpkt (bytes))
+  (define resendack #f)
+
+  (for ([i (in-naturals)]
+        #:break (if (list? (sync/timeout 1 (udp-receive!-evt recvsock inbytes)))
+                    ;; If we get a list, there was a datagram for us.
+                    (begin
+                      (set! pkt (udpseg #f #f 0 (bytes)))
+                      (set! pkt (parse-datagram inbytes))
+                      (set! resendack #f)
+                      (udpseg-eofile pkt))
+                    ;; We did not receive a data packet, so resend the ACK.
+                    (begin
+                      (set! resendack #t)
+                      #f))
+        )
+    (if resendack
+        ;; Resend the last ACK packet to try to get more data.
+        (begin
+          (displayln "NO DATA RECEIVED, RESENDING LAST ACK...")
+          (udp-send sendsock ackpkt))
+        ;; Otherwise we have a packet, so we need to do stuff to it.
+        ;; If it has the expected seqnum, send the ACK and increment
+        ;; the expected seqnum.
+        (if (= expseq (udpseg-seqnum pkt))
+            (begin
+              (displayln (format "RECEIVED FILE W/SEQNUM=~a. SENDING SAME ACK." (udpseg-seqnum pkt)))
+              (display (udpseg-data pkt) outfile)
+              (set! ackpkt (build-pkt #t #f expseq (bytes)))
+              (set! expseq (+ 1 expseq))
+              (udp-send sendsock ackpkt))
+            null)
+        )
+    )
+  (display eof outfile)
+  (close-output-port outfile))
+
 (let ((sock (udp-open-socket))
       (recvsock (udp-open-socket))
       (recvbytes (make-bytes 500))
@@ -89,7 +140,8 @@
     (displayln (list "SEQ:" (udpseg-seqnum pkt)))
     (displayln (list "DATA:" (udpseg-data pkt)))
     (if (udpseg-ack pkt)
-        (alt-bit-recv filepath sock recvsock)
+        ;(alt-bit-recv filepath sock recvsock)
+        (gbn-recv filepath sock recvsock)
         (begin
           (displayln "FILE NOT FOUND OR FILE EMPTY")
           (exit)))

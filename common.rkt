@@ -48,4 +48,7 @@
     [(= 1 seqnum) 0])
   )
 
+(define (set!-list-item lst pos newitem)
+  (build-list (length lst) (lambda (x) (if (= x pos) newitem x))))
+
 (provide (all-defined-out))
